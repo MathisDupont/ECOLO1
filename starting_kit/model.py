@@ -1,97 +1,64 @@
-'''
-Sample predictive model.
-You must supply at least 4 methods:
-- fit: trains the model.
-- predict: uses the model to perform predictions.
-- save: saves the model.
-- load: reloads the model.
-'''
 import pickle
 import numpy as np   # We recommend to use numpy arrays
 from os.path import isfile
 from sklearn.base import BaseEstimator
-from sklearn.tree import DecisionTreeClassifier
+from libscores import get_metric
+from data_manager import DataManager
+import matplotlib
+from sklearn.metrics import make_scorer
+from sklearn.model_selection import cross_val_score
 
-from sklearn.neighbors import KNeighborsClassifier
-from sklearn.svm import SVC
-from sklearn.naive_bayes import GaussianNB
-from sklearn.gaussian_process.kernels import RBF
+import preprocess as prepro
+
 from sklearn.ensemble import ExtraTreesClassifier
-from sklearn.ensemble import RandomForestClassifier, AdaBoostClassifier
-from sklearn.neural_network import MLPClassifier
-from sklearn.gaussian_process import GaussianProcessClassifier
-from sklearn.discriminant_analysis import QuadraticDiscriminantAnalysis
+from sklearn.ensemble import RandomForestClassifier
 
-class model (BaseEstimator):
+model_dir = 'sample_code_submission/'                        # Change the model to a better one once you have one!
+result_dir = 'sample_result_submission/' 
+problem_dir = 'ingestion_program/'  
+score_dir = 'scoring_program/'
+data_dir = 'public_data'          
+data_name = 'plankton'
+
+
+
+class model(BaseEstimator):
+    '''Class based on MonsterClassifier'''
     def __init__(self):
         '''
-        This constructor is supposed to initialize data members.
-        Use triple quotes for function documentation. 
+        fancy_classifier = Pipeline([
+                    ('preprocessing', Preprocessor()),
+                    ('classification', RandomForestClassifier(n_estimators=136, max_depth=None, min_samples_split=2, random_state=0))
+                    ])
+        self.clf = VotingClassifier(estimators=[
+                    ('Linear Discriminant Analysis', LinearDiscriminantAnalysis()),
+                    ('Gaussian Classifier', GaussianNB()),
+                    ('Support Vector Machine', SVC(probability=True)),
+                    ('Fancy Classifier', fancy_classifier)],
+                    voting='soft')   
         '''
-        
-        # Customized classifier among decision tree, KNN, ...
-        self.classifier = RandomForestClassifier(n_estimators=136, max_depth=None, min_samples_split=2, random_state=0)
-        
+        self.mdl = RandomForestClassifier(n_estimators=136, max_depth=None, min_samples_split=2, random_state=0)
         self.num_train_samples=0
         self.num_feat=1
         self.num_labels=1
-        self.is_trained=False
-
+        self.prep = prepro.Preprocessor()
+        
     def fit(self, X, y):
-        '''
-        This function should train the model parameters.
-        Here we do nothing in this example...
-        Args:
-            X: Training data matrix of dim num_train_samples * num_feat.
-            y: Training label matrix of dim num_train_samples * num_labels.
-        Both inputs are numpy arrays.
-        For classification, labels could be either numbers 0, 1, ... c-1 for c classe
-        or one-hot encoded vector of zeros, with a 1 at the kth position for class k.
-        The AutoML format support on-hot encoding, which also works for multi-labels problems.
-        Use data_converter.convert_to_num() to convert to the category number format.
-        For regression, labels are continuous values.
-        '''
-        self.num_train_samples = X.shape[0]
-        if X.ndim>1: self.num_feat = X.shape[1]
-        print("FIT: dim(X)= [{:d}, {:d}]".format(self.num_train_samples, self.num_feat))
-        num_train_samples = y.shape[0]
-        if y.ndim>1: self.num_labels = y.shape[1]
-        print("FIT: dim(y)= [{:d}, {:d}]".format(num_train_samples, self.num_labels))
-        if (self.num_train_samples != num_train_samples):
-            print("ARRGH: number of samples in X and y do not match!")
-            
-        if self.classifier is not None:
-            self.classifier.fit(X,y)
-            
-        self.is_trained=True
+        ''' This is the training method: parameters are adjusted with training data.'''
+        
+        #1, y1 = self.prep.fit_transform(X)
+        X1 = self.prep.fit_transform(X, y)
+        return self.mdl.fit(X1, y)
 
     def predict(self, X):
-        '''
-        This function should provide predictions of labels on (test) data.
-        Here we just return zeros...
-        Make sure that the predicted values are in the correct format for the scoring
-        metric. For example, binary classification problems often expect predictions
-        in the form of a discriminant value (if the area under the ROC curve it the metric)
-        rather that predictions of the class labels themselves. For multi-class or multi-labels
-        problems, class probabilities are often expected if the metric is cross-entropy.
-        Scikit-learn also has a function predict-proba, we do not require it.
-        The function predict eventually can return probabilities.
-        '''
-        num_test_samples = X.shape[0]
-        if X.ndim>1: num_feat = X.shape[1]
-        print("PREDICT: dim(X)= [{:d}, {:d}]".format(num_test_samples, num_feat))
-        if (self.num_feat != num_feat):
-            print("ARRGH: number of features in X does not match training data!")
-        print("PREDICT: dim(y)= [{:d}, {:d}]".format(num_test_samples, self.num_labels))
-        y = np.zeros([num_test_samples, self.num_labels])
-        # If you uncomment the next line, you get pretty good results for the Iris data :-)
-        #y = np.round(X[:,3])
-        
-        if self.classifier is not None:
-            y = self.classifier.predict(X)
-        
-        return y
+        ''' This is called to make predictions on test data. Predicted classes are output.'''
+        X1 = self.prep.transform(X)
+        return self.mdl.predict(X1)
 
+    def predict_proba(self, X):
+        ''' Similar to predict, but probabilities of belonging to a class are output.'''
+        return self.mdl.predict_proba(X) # The classes are in the order of the labels returned by get_classes
+        
     def save(self, path="./"):
         file = open(path + '_model.pickle', "wb")
         pickle.dump(self, file)
@@ -103,5 +70,39 @@ class model (BaseEstimator):
             with open(modelfile, 'rb') as f:
                 self = pickle.load(f)
             print("Model reloaded from: " + modelfile)
-        
+        file.close()
         return self
+ 
+   
+def test():
+    '''
+    Permet d'entrainer le modele et renvoie son score
+    '''
+    matplotlib.rcParams['backend'] = 'Qt5Agg'
+    matplotlib.get_backend()
+    D = DataManager(data_name, data_dir)
+    #Load le model
+    mdl = model()
+    
+    Prepro = prepro.Preprocessor()
+    #D.data['X_train'] = Prepro.removeOutliers(D.data['X_train'])
+    #D.data['Y_train'] = Prepro.removeOutliers(D.data['Y_train'])
+    X_train = D.data['X_train']
+    Y_train = D.data['Y_train'].ravel()
+
+    #test de l'entrainement
+    mdl.fit(X_train, Y_train)
+
+    #test de la prediction
+    Y_hat_train = mdl.predict(D.data['X_train']) 
+    Y_hat_valid = mdl.predict(D.data['X_valid'])
+    Y_hat_test = mdl.predict(D.data['X_test'])
+
+    metric_name, scoring_function = get_metric()
+    scores = cross_val_score(mdl, X_train, Y_train, cv=5, scoring=make_scorer(scoring_function))
+    print('\nCV score (95 perc. CI): %0.2f (+/- %0.2f)' % (scores.mean(), scores.std() * 2))
+        
+        
+    
+if __name__=="__main__":
+    test()
