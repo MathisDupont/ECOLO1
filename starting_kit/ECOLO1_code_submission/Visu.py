@@ -1,5 +1,5 @@
 '''
-Ici vous trouverez les fonctions de visualisation
+Ici vous trouverez les fonctions de visualisation, test en cours
 '''
 
 import pickle
