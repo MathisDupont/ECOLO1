@@ -1,3 +1,14 @@
+"""
+Created on Fri Apr 3 18:01:42 2020
+Last revised: Apr 5, 2020
+
+@author: Alan Adamiak, Arthur Clot
+
+This class is based on zPreprocessor.py by Isabelle Guyon.
+This class contains the function to fit and tranform the data, plus all the funcitons used to search
+the best parameters for the preprocessing.
+"""
+
 from sys import argv
 import warnings
 import numpy as np
@@ -25,8 +36,8 @@ class Preprocessor(BaseEstimator):
         - apply the parameters to the data
     """
     def __init__(self):
-        self.best_features_nb = 199
-        self.best_dim_nb = 10
+        self.best_features_nb = 199  # Best value found by the find best features function
+        self.best_dim_nb = 10  # Best value found by the find best pca function
         self.skbest = SelectKBest(chi2, k=self.best_features_nb)
         self.pca = PCA(n_components=self.best_dim_nb)
         self.features_scores = []
@@ -85,7 +96,8 @@ class Preprocessor(BaseEstimator):
                 tmpM.fit(X_train, Y_train)
                 Y_hat_train = tmpM.predict(X_train)
                 metric_name, scoring_function = get_metric()
-                scores[i][j] = (scoring_function(Y_train, Y_hat_train))
+                scrs = cross_val_score(M, X_train, Y_train, cv=5, scoring=make_scorer(scoring_function))
+                scores[i][j] = (scrs.mean())
         max_pos = np.argmax(scores)
         self.best_features_nb = max_pos // 200
         self.best_dim_nb = max_pos % 200
@@ -105,7 +117,8 @@ class Preprocessor(BaseEstimator):
             M.fit(X_train, Y_train)
             Y_hat_train = M.predict(X_train)
             metric_name, scoring_function = get_metric()
-            self.features_scores.append(scoring_function(Y_train, Y_hat_train))
+            scores = cross_val_score(M, X_train, Y_train, cv=5, scoring=make_scorer(scoring_function))
+            self.features_scores.append(scores.mean())
         self.best_features_nb = self.features_scores.index(max(self.features_scores))
 
     def detect_outliers(self, X):
@@ -142,7 +155,8 @@ class Preprocessor(BaseEstimator):
             M.fit(X_train, Y_train)
             Y_hat_train = M.predict(X_train)
             metric_name, scoring_function = get_metric()
-            self.pca_scores.append(scoring_function(Y_train, Y_hat_train))
+            scores = cross_val_score(M, X_train, Y_train, cv=5, scoring=make_scorer(scoring_function))
+            self.pca_scores.append(scores.mean())
         self.best_dim_nb = self.pca_scores.index(max(self.pca_scores))
 
     def apply_parameters(self):
