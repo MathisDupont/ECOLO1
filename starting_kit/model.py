@@ -1,3 +1,13 @@
+"""
+Created on Sat Apr 4 
+Last revised: Apr 5, 2020
+
+@author: Antoine Barbannaud, Minh Kha Nguyen
+
+This class is based on zClassifier.py by Isabelle Guyon.
+This class contains the classifier with the integration of a preprocesor
+"""
+
 import pickle
 import numpy as np   # We recommend to use numpy arrays
 from os.path import isfile
@@ -45,7 +55,6 @@ class model(BaseEstimator):
         
     def fit(self, X, y):
         ''' This is the training method: parameters are adjusted with training data.'''
-        
         #1, y1 = self.prep.fit_transform(X)
         X1 = self.prep.fit_transform(X, y)
         return self.mdl.fit(X1, y)
@@ -76,7 +85,7 @@ class model(BaseEstimator):
    
 def test():
     '''
-    Permet d'entrainer le modele et renvoie son score
+    Trains the model and returns its score
     '''
     matplotlib.rcParams['backend'] = 'Qt5Agg'
     matplotlib.get_backend()
