@@ -42,7 +42,6 @@ class Preprocessor(BaseEstimator):
         self.pca = PCA(n_components=self.best_dim_nb)
         self.features_scores = []
         self.pca_scores = []
-        self.detected_outliers = []
 
     def fit(self, X, y):
         """
@@ -51,8 +50,9 @@ class Preprocessor(BaseEstimator):
         :param y: The target values (class labels).
         :return: A new version of this instance with fitted pca et skbest
         """
-        self.pca.fit(X, y)
         self.skbest.fit(X, y)
+        X1 = self.skbest.transform(X)
+        self.pca.fit(X1, y)
         return self
 
     def fit_transform(self, X, y=None):
@@ -62,7 +62,8 @@ class Preprocessor(BaseEstimator):
         :param y: The target values (class labels).
         :return: Transformed array.
         """
-        return self.pca.fit_transform(self.skbest.fit_transform(X, y), y)
+        X = self.skbest.fit_transform(X, y)
+        return self.pca.fit_transform(X)
 
     def transform(self, X, y=None):
         """
@@ -71,7 +72,8 @@ class Preprocessor(BaseEstimator):
         :param y: The target values (class labels).
         :return: The input samples with only the selected features and dimensions.
         """
-        return self.pca.transform(self.skbest.transform(X))
+        X = self.skbest.transform(X)
+        return self.pca.transform(X)
 
     def find_best_params(self, speed):
         """
@@ -94,7 +96,6 @@ class Preprocessor(BaseEstimator):
                 pca.fit(D.data['X_train'], Y_train)
                 X_train = pca.transform(D.data['X_train'])
                 tmpM.fit(X_train, Y_train)
-                Y_hat_train = tmpM.predict(X_train)
                 metric_name, scoring_function = get_metric()
                 scrs = cross_val_score(M, X_train, Y_train, cv=5, scoring=make_scorer(scoring_function))
                 scores[i][j] = (scrs.mean())
@@ -115,7 +116,6 @@ class Preprocessor(BaseEstimator):
             X_train = feature_selection.transform(D.data['X_train'])
             Y_train = D.data['Y_train'].ravel()
             M.fit(X_train, Y_train)
-            Y_hat_train = M.predict(X_train)
             metric_name, scoring_function = get_metric()
             scores = cross_val_score(M, X_train, Y_train, cv=5, scoring=make_scorer(scoring_function))
             self.features_scores.append(scores.mean())
@@ -153,7 +153,6 @@ class Preprocessor(BaseEstimator):
             X_train = pca.transform(D.data['X_train'])
             Y_train = D.data['Y_train'].ravel()
             M.fit(X_train, Y_train)
-            Y_hat_train = M.predict(X_train)
             metric_name, scoring_function = get_metric()
             scores = cross_val_score(M, X_train, Y_train, cv=5, scoring=make_scorer(scoring_function))
             self.pca_scores.append(scores.mean())
