@@ -1,12 +1,14 @@
 """
 Created on Fri Apr 3 18:01:42 2020
-Last revised: Apr 5, 2020
+Last revised: May 9, 2020
 
 @author: Alan Adamiak, Arthur Clot
 
 This class is based on zPreprocessor.py by Isabelle Guyon.
 This class contains the function to fit and tranform the data, plus all the funcitons used to search
 the best parameters for the preprocessing.
+
+Test with: python3 preprocess.py
 """
 
 from sys import argv
@@ -62,8 +64,8 @@ class Preprocessor(BaseEstimator):
         :param y: The target values (class labels).
         :return: Transformed array.
         """
-        X = self.skbest.fit_transform(X, y)
-        return self.pca.fit_transform(X)
+        X1 = self.skbest.fit_transform(X, y)
+        return self.pca.fit_transform(X1)
 
     def transform(self, X, y=None):
         """
@@ -72,8 +74,8 @@ class Preprocessor(BaseEstimator):
         :param y: The target values (class labels).
         :return: The input samples with only the selected features and dimensions.
         """
-        X = self.skbest.transform(X)
-        return self.pca.transform(X)
+        X1 = self.skbest.transform(X)
+        return self.pca.transform(X1)
 
     def find_best_params(self, speed):
         """
@@ -132,14 +134,14 @@ class Preprocessor(BaseEstimator):
         clf.fit(X) # use IsolationForest on the data
         return clf.predict(X) # mark down the outilers of the datas (detected_outliers= -1 if outlier, 1 else )
 
-    def removeOutliers(self, data):
+    def removeOutliers(self, X, Y):
         """
         Remove the ouliers who are detected
         :param data: The data of which the outliers will be removed
         :return: The data without outliers
         """
-        outliers = self.detect_outliers(data)
-        return data[outliers > 0]
+        outliers = self.detect_outliers(X)
+        return X[outliers > 0], Y[outliers > 0]
 
     def find_best_pca(self):
         """
@@ -198,13 +200,13 @@ class Preprocessor(BaseEstimator):
 if __name__ == "__main__":
     # We can use this to run this file as a script and test the Preprocessor
     if len(argv) == 1:  # Use the default input and output directories if no arguments are provided
-        input_dir = "../public_data"
-        output_dir = "../results"
+        input_dir = "public_data"
+        output_dir = "results"
     else:
         input_dir = argv[1]
         output_dir = argv[2]
 
-    basename = 'Iris'
+    basename = 'plankton'
     D = DataManager(basename, input_dir)  # Load data
     print("*** Original data ***")
     print(D)
@@ -213,6 +215,7 @@ if __name__ == "__main__":
 
     # Preprocess on the data and load it back into D
     D.data['X_train'] = Prepro.fit_transform(D.data['X_train'], D.data['Y_train'])
+    D.data['X_train'], D.data['Y_train'] = Prepro.removeOutliers(D.data['X_train'], D.data['Y_train'])
     D.data['X_valid'] = Prepro.transform(D.data['X_valid'])
     D.data['X_test'] = Prepro.transform(D.data['X_test'])
     D.feat_name = np.array(['PC1', 'PC2'])
@@ -221,3 +224,4 @@ if __name__ == "__main__":
     # Here show something that proves that the preprocessing worked fine
     print("*** Transformed data ***")
     print(D)
+    print(D.data['Y_valid'])
